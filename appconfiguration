@@ -1,0 +1,24 @@
+resourceGroupName='Identity-Application'
+functionAppName='identity-application-agdev'
+keyHostKeyName='Identity-Application:HostKey'
+keyBaseUrlName='Identity-Application:BaseUrl'
+primaryAppConfiguration='CloudPlatformManagement-AGDEV'
+secondaryAppConfiguration='CloudPlatformManagement-AGDEV-Secondary'
+subscriptionId='a87c5f15-f4b3-447b-baf5-c8ee438019fb'
+az account set --subscription $subscriptionId
+functionUrl=$(az functionapp config hostname list --resource-group $resourceGroupName --webapp-name $functionAppName --query '[].name' -o json)
+functionUrl="${functionUrl//[/''}"
+functionUrl="${functionUrl//]/''}"
+functionUrl="${functionUrl//\"/''}"
+functionUrl="$(echo -e "${functionUrl}" | tr -d '[:space:]')"
+baseUrl="https://${functionUrl}/"
+echo "Function app base URL - ${baseUrl}"
+uri="/subscriptions/${subscriptionId}/resourceGroups/${resourceGroupName}/providers/Microsoft.Web/sites/${functionAppName}/host/default/listKeys?api-version=2018-11-01"
+echo "Retrieving host key for ${uri}"
+hostKey=$(az rest --method post --uri $uri --query functionKeys.default)
+hostKey="${hostKey//\"/''}"
+echo $hostKey | cut -c 1-12 
+result=$(az appconfig kv set -n $primaryAppConfiguration --key $keyHostKeyName --value $hostKey --yes)
+result=$(az appconfig kv set -n $primaryAppConfiguration --key $keyBaseUrlName --value $baseUrl --yes)
+result=$(az appconfig kv set -n $secondaryAppConfiguration --key $keyHostKeyName --value $hostKey --yes)
+result=$(az appconfig kv set -n $secondaryAppConfiguration --key $keyBaseUrlName --value $baseUrl --yes)
